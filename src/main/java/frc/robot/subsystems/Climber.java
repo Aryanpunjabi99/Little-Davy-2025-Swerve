@@ -32,9 +32,8 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 //Configuration of motor when not resting(with power)
 import com.revrobotics.spark.config.SparkMaxConfig;
 
-//imports getEncoder()
-import com.revrobotics.RelativeEncoder;
-
+//imports boolean supplier: used in get setpoint status. refer to line 52 and 
+import java.util.function.BooleanSupplier;
 //pid stuff
 import edu.wpi.first.math.controller.PIDController;
 
@@ -46,7 +45,9 @@ public class Climber extends SubsystemBase{ // puts climber as a subsystem; insi
     private final double restingPosition = 0; 
     private final double engagedPosition = 90;
     private final double climbedPositon = 45;
-    
+    //its not at the setpoint when we turn it on
+    private BooleanSupplier climberAtSetpoint = ()-> false;
+
     double speed = 0;
     double motorPosition = 0;
     double target = 0;
@@ -72,25 +73,42 @@ private Command climberPreset(){
         }
     );
 }
+//get the set point and put it as the target. Return if its at the setpoint or not.
+public BooleanSupplier getElevatorSetpointStatus(){
+    target = climberPid.getSetpoint();
+   return climberAtSetpoint = ()-> climberPid.atSetpoint();
+}
 
     //up d-pad will shoot to 90 deg
     private Command moveClimberToEngaged(){
+    targetPosition(engagedPosition);
+    return this.runOnce(
+        ()-> {
+            setSpeed();
+        }
+    );
 
     }
     //B button will shoot down to climbed
     private Command moveToClimbed(){
-
+        targetPosition(climbedPositon);
+        return this.runOnce(
+            ()-> {
+                setSpeed();
+            }
+        );
     }
     //down d-pad will move down
     public Command moveClimberDown(){
         return this.runOnce(
             ()-> {
-                speed = -0.2;
+                motorForClimber.set(-0.2);
             });
     }
 //Periodically gets motorPosition
  @Override
     public void periodic() {
         motorPosition = encoderForClimber.getPosition();
-    }
+        getElevatorSetpointStatus();
+}
 }
